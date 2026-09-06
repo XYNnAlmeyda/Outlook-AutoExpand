@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OutlookExpand — Account Manager & Alias Generator</title>
+  <meta name="description"
+    content="Automated Outlook/Microsoft account manager: batch alias expansion, real-time progress tracking, and live console logging." />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+
+<body>
+
+  <div id="app">
+
+    <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+    <header class="header">
+      <div class="header-brand">
+        <div>
+          <div class="brand-title">OutlookExpand (DEV BY XYNN POGI)</div>
+          <div class="brand-sub">Account Manager &amp; Alias Generator</div>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="status-dot idle" id="status-dot"></div>
+        <span id="status-text">Idle</span>
+      </div>
+    </header>
+
+    <!-- ══ KPI CARDS ════════════════════════════════════════════════ -->
+    <section class="kpi-grid" aria-label="Statistics">
+      <div class="kpi-card kpi-total">
+        <div class="kpi-label">Total Accounts</div>
+        <div class="kpi-value" id="kpi-total">0</div>
+        <div class="kpi-sub">Loaded in queue</div>
+      </div>
+      <div class="kpi-card kpi-complete">
+        <div class="kpi-label">Completed</div>
+        <div class="kpi-value" id="kpi-completed">0</div>
+        <div class="kpi-sub">Processed so far</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-label">Successful</div>
+        <div class="kpi-value" id="kpi-success">0</div>
+        <div class="kpi-sub">Aliases created</div>
+      </div>
+      <div class="kpi-card kpi-failed">
+        <div class="kpi-label">Failed</div>
+        <div class="kpi-value" id="kpi-failed">0</div>
+        <div class="kpi-sub">Errored accounts</div>
+      </div>
+      <div class="kpi-card kpi-active">
+        <div class="kpi-label">Active</div>
+        <div class="kpi-value" id="kpi-active">0</div>
+        <div class="kpi-sub">Current browser</div>
+      </div>
+    </section>
+
+    <!-- ══ PROGRESS BAR ═════════════════════════════════════════════ -->
+    <div class="progress-wrap" aria-label="Overall progress">
+      <div class="progress-header">
+        <span class="progress-label" id="progress-label">No job running</span>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- ══ MAIN GRID ════════════════════════════════════════════════ -->
+    <div class="main-grid">
+
+      <!-- LEFT: Configuration panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Configuration</span>
+        </div>
+        <div class="panel-body">
+
+          <!-- Accounts input -->
+          <div class="form-group">
+            <label class="form-label" for="accounts-input">Accounts (email:password, one per line)</label>
+            <textarea id="accounts-input"
+              placeholder="xynn@outlook.com:xynnshesh&#10;xynn2@hotmail.com:xynnshesh&#10;xynn3@live.com:xynnshesh"
+              spellcheck="false"></textarea>
+          </div>
+
+          <!-- Target URL -->
+          <div class="form-group">
+            <label class="form-label" for="cfg-target-url">Target URL</label>
+            <input type="url" id="cfg-target-url" value="https://account.live.com/names/manage?mkt=en-US"
+              placeholder="https://account.live.com/names/manage?mkt=en-US" />
+          </div>
+
+          <!-- Alias settings row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="cfg-aliases">Aliases per Account</label>
+              <input type="number" id="cfg-aliases" value="3" min="1" max="10" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-strategy">Alias Strategy</label>
+              <select id="cfg-strategy">
+                <option value="random" selected>Random Name + Number</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Delay row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="cfg-min-delay">Min Delay (s)</label>
+              <input type="number" id="cfg-min-delay" value="2" min="1" max="30" step="0.5" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-max-delay">Max Delay (s)</label>
+              <input type="number" id="cfg-max-delay" value="5" min="1" max="60" step="0.5" />
+            </div>
+          </div>
+
+          <!-- Headful toggle -->
+          <div class="toggle-wrap">
+            <div>
+              <div class="toggle-label">Headful / Visible Browser</div>
+              <div class="toggle-sublabel">Enable to see browser &amp; manually handle 2FA/CAPTCHA</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cfg-headless" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btn-start" style="flex:1">
+              Start Job
+            </button>
+            <button class="btn btn-danger" id="btn-stop" disabled>
+              Stop
+            </button>
+          </div>
+
+        </div>
+      </div><!-- /left panel -->
+
+      <!-- RIGHT: Live console panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Live Console</span>
+          <div class="panel-badge" id="log-count-badge">0 lines</div>
+        </div>
+        <div class="panel-body" style="padding-bottom:14px">
+          <div class="btn-group" style="margin-bottom:10px">
+            <button class="btn btn-ghost btn-sm" id="btn-clear-log">Clear</button>
+            <button class="btn btn-ghost btn-sm" id="btn-scroll-toggle">Pause Scroll</button>
+          </div>
+          <div class="console-wrap">
+            <div id="console-output" aria-label="Live log output" aria-live="polite">
+              <div class="log-line log-INFO">
+                <span class="log-ts">--:--:--</span>
+                <span class="log-acct">SYSTEM</span>
+                <span class="log-level">[INFO]</span>
+                <span class="log-msg">Dashboard ready. Configure your accounts and press Start Job.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /right panel -->
+
+    </div><!-- /main-grid -->
+
+    <!-- ══ RESULTS TABLE ════════════════════════════════════════════ -->
+    <section class="results-wrap" aria-label="Account results">
+      <div class="results-header">
+        <span class="results-title">Account Results</span>
+        <div class="btn-group">
+          <button class="btn btn-danger btn-sm" id="btn-clear-results">Clear Results</button>
+          <button class="btn btn-ghost btn-sm" id="export-txt">Export TXT</button>
+          <button class="btn btn-ghost btn-sm" id="export-csv">Export CSV</button>
+          <button class="btn btn-ghost btn-sm" id="export-json">Export JSON</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Account</th>
+              <th>Status</th>
+              <th>Created Aliases</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr>
+              <td colspan="4">
+                <div class="empty-state">
+                  <div>No results yet. Start a job to see account outcomes here.</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <!-- Toast notifications -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
